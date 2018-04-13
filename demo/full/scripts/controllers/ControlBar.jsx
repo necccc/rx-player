@@ -24,7 +24,12 @@ function ControlBar({
   if (!shouldDisplayProgressBar) {
     positionElement = null;
   } else if (isLive) {
-    positionElement = <LivePosition />;
+    const date = new Date(currentTime * 1000);
+    const hours = date.getHours().toString().padStart(2, "0");
+    const minutes = date.getMinutes().toString().padStart(2, "0");
+    const seconds = date.getSeconds().toString().padStart(2, "0");
+    const currentReadableHour =  hours + ":" + minutes + ":" + seconds;
+    positionElement = <LivePosition currentReadableHour={currentReadableHour}/>;
   } else {
     positionElement = <PositionInfos
       position={currentTime}
