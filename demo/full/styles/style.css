@@ -462,7 +462,11 @@ body {
   opacity: 0;
   transform: scale(0.9);
   transition: opacity 200ms;
+<<<<<<< HEAD
   z-index: 1010;
+=======
+  z-index: 120;
+>>>>>>> demo/overlays: add overlay on demo
   pointer-events:none;
 }
 
