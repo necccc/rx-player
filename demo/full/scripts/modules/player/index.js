@@ -7,6 +7,7 @@
  */
 
 import { linkPlayerEventsToState } from "./events.js";
+import loadBXF from "../bxf.js";
 
 const RxPlayer = window.RxPlayer;
 
@@ -75,15 +76,28 @@ const PLAYER = (
     },
 
     LOAD: (arg) => {
-      player.loadVideo(Object.assign({
-        textTrackElement,
-        overlayElement,
-        networkConfig: {
-          segmentRetry: Infinity,
-          manifestRetry: Infinity,
-          offlineRetry: Infinity,
-        },
-      }, arg));
+      if (arg.transport === "bxf") {
+        loadBXF(Object.assign({
+          textTrackElement,
+          overlayElement,
+          beginning: arg.beginning,
+          networkConfig: {
+            segmentRetry: Infinity,
+            manifestRetry: Infinity,
+            offlineRetry: Infinity,
+          },
+        }, arg));
+      } else {
+        player.loadVideo(Object.assign({
+          textTrackElement,
+          overlayElement,
+          networkConfig: {
+            segmentRetry: Infinity,
+            manifestRetry: Infinity,
+            offlineRetry: Infinity,
+          },
+        }, arg));
+      }
       state.set({ loadedVideo: arg });
     },
 
