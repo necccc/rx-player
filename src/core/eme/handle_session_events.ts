@@ -116,7 +116,8 @@ function licenseErrorSelector(
  */
 export default function handleSessionEvents(
   session: MediaKeySession|ICustomMediaKeySession,
-  keySystem: IKeySystemOption
+  keySystem: IKeySystemOption,
+  initData: Uint8Array
 ) : Observable<IMediaKeySessionHandledEvents|IEMEWarningEvent> {
   log.debug("eme: handle message events", session);
 
@@ -196,7 +197,7 @@ export default function handleSessionEvents(
       );
 
       const getLicense$ = observableDefer(() => {
-        const getLicense = keySystem.getLicense(message, messageType);
+        const getLicense = keySystem.getLicense(message, messageType, initData);
         return castToObservable(getLicense).pipe(
           timeout(10 * 1000),
           catchError((error : Error) => {
