@@ -27,6 +27,7 @@ import {
   switchMap,
   takeUntil,
   tap,
+  withLatestFrom,
 } from "rxjs/operators";
 import config from "../../config";
 import log from "../../log";
@@ -37,6 +38,8 @@ import EWMA from "./ewma";
 import filterByBitrate from "./filterByBitrate";
 import filterByWidth from "./filterByWidth";
 import fromBitrateCeil from "./fromBitrateCeil";
+
+import { ISmoothnessInfos } from "../buffer/get_smoothness_infos";
 
 const {
   ABR_REGULAR_FACTOR,
@@ -351,11 +354,13 @@ export default class RepresentationChooser {
    */
   public get$(
     clock$ : Observable<IRepresentationChooserClockTick>,
-    representations : Representation[]
+    representations : Representation[],
+    smoothnessInfos$? : Observable<ISmoothnessInfos>
   ) : Observable<IABREstimation> {
     if (!representations.length) {
       throw new Error("ABRManager: no representation choice given");
     }
+
     if (representations.length === 1) {
       return observableOf({
         bitrate: undefined, // Bitrate estimation is deactivated here
@@ -398,9 +403,19 @@ export default class RepresentationChooser {
 
       // -- AUTO mode --
       let inStarvationMode = false; // == buffer gap too low == panic mode
+
       return observableCombineLatest(clock$, maxAutoBitrate$, deviceEvents$)
         .pipe(
-          map(([ clock, maxAutoBitrate, deviceEvents ]) => {
+          withLatestFrom(smoothnessInfos$ || observableOf(undefined)),
+          map(([ [clock, maxAutoBitrate, deviceEvents], smoothnessInfos ]) => {
+            const smoothRepresentations = smoothnessInfos ?
+              representations.filter((representation) => {
+                const repId = representation.id;
+                const isSmooth = smoothnessInfos[repId];
+                return isSmooth != null ? isSmooth : true;
+              }) :
+              representations;
+
             let nextBitrate;
             let bandwidthEstimate;
             const { bufferGap } = clock;
@@ -455,13 +470,13 @@ export default class RepresentationChooser {
             }
 
             const _representations =
-              getFilteredRepresentations(representations, deviceEvents);
+              getFilteredRepresentations(smoothRepresentations, deviceEvents);
 
             return {
               bitrate: bandwidthEstimate,
               manual: false,
               representation: fromBitrateCeil(_representations, nextBitrate) ||
-              representations[0],
+                smoothRepresentations[0],
             };
 
           }),
