@@ -59,6 +59,9 @@ export default function createManifest(
 ) : Manifest {
   manifestObject.periods = (manifestObject.periods).map((period) => {
     Object.keys(period.adaptations).forEach((type) => {
+      if (type === "video") {
+        delete period.adaptations[type];
+      }
       const adaptationsForType = period.adaptations[type];
       if (!adaptationsForType) {
         delete period.adaptations[type];

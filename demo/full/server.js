@@ -18,11 +18,15 @@ const libCompiler = Webpack(webpackLibConfig);
 const serverDemo = new WebpackDevServer(demoCompiler, {
   contentBase: path.join(__dirname, "./"),
   compress: true,
+  disableHostCheck: true,
+  https: true,
 });
 
 const serverLib = new WebpackDevServer(libCompiler, {
   contentBase: path.join(__dirname, "./"),
   compress: true,
+  disableHostCheck: true,
+  https: true,
 });
 
 serverDemo.listen(8000, "127.0.0.1", function() {
