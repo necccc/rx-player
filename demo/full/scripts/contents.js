@@ -148,6 +148,12 @@ export default [
     },
   },
   {
+    "name": "Canal + - Jeudi 4 Octobre Canal + series",
+    "url": "https://drm.canal-plus.com:8443/jeudi_04_10.bxf",
+    "transport": "bxf",
+    "live": false,
+  },
+  {
     "name": "Canal + - Mardi 26 juin Canal + series",
     "url": "https://drm.canal-plus.com:8443/mardi.bxf",
     "transport": "bxf",
