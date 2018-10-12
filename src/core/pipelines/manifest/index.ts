@@ -31,6 +31,7 @@ import Manifest, {
   ISupplementaryImageTrack,
   ISupplementaryTextTrack,
 } from "../../../manifest";
+import getPresentationLiveGap from "../../../manifest/utils/get_presentation_live_gap";
 import {
   IManifestLoaderArguments,
   IManifestParserArguments,
@@ -42,6 +43,7 @@ import createLoader, {
   IPipelineLoaderResponse,
 } from "../create_loader";
 import createParser from "../create_parser";
+import loadPeriodFromLink from "./load_period_from_link";
 
 export interface IManifestTransportInfos {
   pipelines : ITransportPipelines;
@@ -77,7 +79,7 @@ export default function createManifestPipeline(
   warning$ : Subject<Error|ICustomError>
 ) : (url : string) => Observable<Manifest> {
   const loader = createLoader<
-  IManifestLoaderArguments, Document|string
+    IManifestLoaderArguments, Document|string
   >(transport.pipelines.manifest, pipelineOptions);
 
   const parser = createParser<
@@ -105,8 +107,27 @@ export default function createManifestPipeline(
 
       mergeMap(({ value }) => parser({ response: value, url })),
 
-      map(({ manifest }) : Manifest => {
-        return new Manifest(manifest, warning$, transport.options);
+      mergeMap(({ manifest }) : Observable<Manifest> => {
+        const periodPipelineOptions = {
+          // no cache
+          maxRetry: pipelineOptions.maxRetry,
+          maxRetryOffline: pipelineOptions.maxRetryOffline,
+        };
+
+        return loadPeriodFromLink(
+          transport.pipelines,
+          periodPipelineOptions,
+          manifest
+        ).pipe(
+            map((loadedPeriods) => {
+              manifest.periods = loadedPeriods;
+              if (manifest.isLive) {
+                manifest.presentationLiveGap =
+                  getPresentationLiveGap(manifest);
+              }
+              return new Manifest(manifest, warning$, transport.options);
+            })
+        );
       }),
       share()
     );
