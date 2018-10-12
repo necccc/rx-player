@@ -206,24 +206,11 @@ export default class QueuedSourceBuffer<T> {
 
   /**
    * Unlock the QueuedSourceBuffer.
-   * The actions taken will depends on the value of the boolean given in
-   * argument:
-   *
-   *   - if true, the current queue of actions will be flushed without
-   *     any one of them taking place.
-   *
-   *   - if false, every actions will be done sequentially.
-   *
-   * @param {Boolean} flushCurrentQueue
+   * Every actions in Queue will be done sequentially.
    */
-  unlock(flushCurrentQueue : boolean) : void {
+  unlock() : void {
     this._isLocked = false;
-
-    if (flushCurrentQueue) {
-      this._emptyQueue();
-    } else {
-      this._performNextQueuedAction();
-    }
+    this._performNextQueuedAction();
   }
 
   /**
@@ -297,6 +284,19 @@ export default class QueuedSourceBuffer<T> {
    */
   public getBuffered() : TimeRanges|ICustomTimeRanges {
     return this._buffer.buffered;
+  }
+
+  /**
+   * Empty the current queue of actions without performing any of them.
+   * All related subjects will be completed immediately.
+   */
+  public emptyQueue() : void {
+    while (this._queue.length) {
+      const item = this._queue.pop();
+      if (item != null && item.subject != null) {
+        item.subject.complete();
+      }
+    }
   }
 
   /**
@@ -454,19 +454,6 @@ export default class QueuedSourceBuffer<T> {
       }
     } catch (e) {
       this._onError(e);
-    }
-  }
-
-  /**
-   * Empty the current queue of actions without performing any of them.
-   * All related subjects will be completed immediately.
-   */
-  private _emptyQueue() : void {
-    while (this._queue.length) {
-      const item = this._queue.pop();
-      if (item != null && item.subject != null) {
-        item.subject.complete();
-      }
     }
   }
 }
