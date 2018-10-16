@@ -291,6 +291,7 @@ export default class QueuedSourceBuffer<T> {
    * All related subjects will be completed immediately.
    */
   public emptyQueue() : void {
+    log.info(`QueuedSourceBuffer: emptying ${this.bufferType} queue.`);
     while (this._queue.length) {
       const item = this._queue.pop();
       if (item != null && item.subject != null) {
