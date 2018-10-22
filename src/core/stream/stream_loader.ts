@@ -17,17 +17,20 @@
 import {
   EMPTY,
   merge as observableMerge,
-  interval as observableInterval,
   Observable,
   of as observableOf,
+  ReplaySubject,
   Subject,
+  timer as observableTimer,
 } from "rxjs";
 import {
   finalize,
   ignoreElements,
   map,
   mergeMap,
+  switchMap,
   takeUntil,
+  tap,
 } from "rxjs/operators";
 import { MediaError } from "../../errors";
 import Manifest, {
@@ -163,6 +166,12 @@ export default function StreamLoader({
       (evt : IPeriodBufferManagerEvent) => observableOf(evt);
     /* tslint:enable no-unnecessary-callback-wrapper */
 
+    // Refresh manifest update period after refreshing manifest.
+    const refreshMinimumUpdatePeriod$ = new ReplaySubject<number>(1);
+    if (manifest.minimumUpdatePeriod && manifest.minimumUpdatePeriod > 0) {
+      refreshMinimumUpdatePeriod$.next(manifest.minimumUpdatePeriod);
+    }
+
     // Creates Observable which will manage every Buffer for the given Content.
     const buffers$ = PeriodBufferManager(
       { manifest, initialPeriod },
@@ -171,18 +180,28 @@ export default function StreamLoader({
       sourceBufferManager,
       segmentPipelinesManager,
       bufferOptions
-    ).pipe(mergeMap((evt) : Observable<IStreamLoaderEvent> => {
-      switch (evt.type) {
-        case "end-of-stream":
-          return maintainEndOfStream(mediaSource)
-            .pipe(ignoreElements(), takeUntil(cancelEndOfStream$));
-        case "resume-stream":
-          cancelEndOfStream$.next(null);
-          return EMPTY;
-        default:
-          return onBufferEvent(evt);
-      }
-    }));
+    ).pipe(
+      mergeMap((evt) : Observable<IStreamLoaderEvent> => {
+        switch (evt.type) {
+          case "end-of-stream":
+            return maintainEndOfStream(mediaSource)
+              .pipe(ignoreElements(), takeUntil(cancelEndOfStream$));
+          case "resume-stream":
+            cancelEndOfStream$.next(null);
+            return EMPTY;
+          default:
+            return onBufferEvent(evt);
+        }
+      }),
+      tap((evt) => {
+        if (evt.type === "manifestUpdate") {
+          const { minimumUpdatePeriod } = evt.value.manifest;
+          if (minimumUpdatePeriod && minimumUpdatePeriod > 0) {
+            refreshMinimumUpdatePeriod$.next(minimumUpdatePeriod);
+          }
+        }
+      })
+    );
 
     // Create Speed Manager, an observable which will set the speed set by the
     // user on the media element while pausing a little longer while the buffer
@@ -196,15 +215,24 @@ export default function StreamLoader({
     const stallingManager$ = StallingManager(mediaElement, clock$)
       .pipe(map(EVENTS.stalled));
 
-    // Creates an observable which will refresh the manifest every
-    // minimumUpdatePeriod.
-    const updatePeriod$ =
-      (manifest.minimumUpdatePeriod !== undefined && manifest.minimumUpdatePeriod > 0) ?
-      observableInterval(manifest.minimumUpdatePeriod * 1000).pipe(
-        mergeMap(() => refreshManifest(fetchManifest, manifest))
-      ) :
-      EMPTY;
-
+    // Creates an observable which will refresh the manifest after
+    // minimum update period as elapsed.
+    const updateManifest$ = refreshMinimumUpdatePeriod$.pipe(
+      switchMap((updatePeriod) => {
+        return observableTimer(updatePeriod * 1000).pipe(
+          mergeMap(() => {
+            return refreshManifest(fetchManifest, manifest).pipe(
+              finalize(() => {
+                const { minimumUpdatePeriod } = manifest;
+                if (minimumUpdatePeriod) {
+                  refreshMinimumUpdatePeriod$.next(minimumUpdatePeriod);
+                }
+              })
+            );
+          })
+        );
+      })
+    );
 
     const loadedEvent$ = load$
       .pipe(mergeMap((evt) => {
@@ -216,7 +244,7 @@ export default function StreamLoader({
       }));
 
     return observableMerge(
-      updatePeriod$,
+      updateManifest$,
       loadedEvent$,
       buffers$,
       speedManager$,
