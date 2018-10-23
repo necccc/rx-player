@@ -22,8 +22,8 @@ import log from "../../log";
 import Manifest from "../../manifest";
 import { IPeriodBufferManagerEvent } from "../buffer";
 import SourceBufferManager from "../source_buffers";
-import { IManifestUpdateEvent } from "./types";
 import refreshManifest from "./refresh_manifest";
+import { IManifestUpdateEvent } from "./types";
 
 export type ILiveEventsHandlerEvent =
   IManifestUpdateEvent |
