@@ -168,8 +168,7 @@ export default function StreamLoader({
       abrManager,
       sourceBufferManager,
       segmentPipelinesManager,
-      bufferOptions,
-      mediaElement
+      bufferOptions
     ).pipe(mergeMap((evt) : Observable<IStreamLoaderEvent> => {
       switch (evt.type) {
         case "end-of-stream":

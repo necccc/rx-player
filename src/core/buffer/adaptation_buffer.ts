@@ -71,8 +71,6 @@ import {
   IRepresentationBufferEvent,
 } from "./types";
 
-import getSmoothnessInfos from "./get_smoothness_infos";
-
 export interface IAdaptationBufferClockTick extends IRepresentationBufferClockTick {
   isLive : boolean;
   speed : number;
@@ -109,13 +107,12 @@ export default function AdaptationBuffer<T>(
   wantedBufferAhead$ : Observable<number>,
   content : { manifest : Manifest; period : Period; adaptation : Adaptation },
   abrManager : ABRManager,
-  options : { manualBitrateSwitchingMode : "seamless"|"direct" },
-  videoElement : HTMLMediaElement
+  options : { manualBitrateSwitchingMode : "seamless"|"direct" }
 ) : Observable<IAdaptationBufferEvent<T>> {
   const directManualBitrateSwitching = options.manualBitrateSwitchingMode === "direct";
   const { manifest, period, adaptation } = content;
   const abr$ = getABRForAdaptation(
-    adaptation, abrManager, clock$, segmentBookkeeper, videoElement)
+    content, abrManager, clock$, segmentBookkeeper)
     .pipe(
           // equivalent to a sane shareReplay:
     // https://github.com/ReactiveX/rxjs/issues/3336
@@ -220,13 +217,11 @@ export default function AdaptationBuffer<T>(
  * @returns {Observable}
  */
 function getABRForAdaptation(
-  adaptation : Adaptation,
+  content: { period : Period; adaptation : Adaptation },
   abrManager : ABRManager,
   abrBaseClock$ : Observable<IAdaptationBufferClockTick>,
-  segmentBookkeeper : SegmentBookkeeper,
-  videoElement : HTMLMediaElement
+  segmentBookkeeper : SegmentBookkeeper
 ) : Observable<IABREstimation> {
-  const representations = adaptation.representations;
 
   /**
    * Keep track of the current representation to add informations to the
@@ -243,15 +238,11 @@ function getABRForAdaptation(
       return objectAssign({ bitrate }, tick);
     }));
 
-  const smoothnessInfos$ = (
-    adaptation.type === "video" &&
-    videoElement instanceof HTMLVideoElement
-  ) ?
-    getSmoothnessInfos(segmentBookkeeper, videoElement, adaptation.representations) :
-    observableOf({});
-
   return abrManager.get$(
-    adaptation.type, abrClock$, representations, smoothnessInfos$).pipe(
+    content,
+    abrClock$,
+    segmentBookkeeper
+  ).pipe(
     tap(({ representation }) => {
       currentRepresentation = representation;
     }));
