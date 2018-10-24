@@ -355,7 +355,7 @@ export default class RepresentationChooser {
   public get$(
     clock$ : Observable<IRepresentationChooserClockTick>,
     representations : Representation[],
-    smoothnessInfos$? : Observable<ISmoothnessInfos>
+    smoothnessInfos$ : Observable<ISmoothnessInfos>
   ) : Observable<IABREstimation> {
     if (!representations.length) {
       throw new Error("ABRManager: no representation choice given");
@@ -406,8 +406,9 @@ export default class RepresentationChooser {
 
       return observableCombineLatest(clock$, maxAutoBitrate$, deviceEvents$)
         .pipe(
-          withLatestFrom(smoothnessInfos$ || observableOf(undefined)),
+          withLatestFrom(smoothnessInfos$),
           map(([ [clock, maxAutoBitrate, deviceEvents], smoothnessInfos ]) => {
+            console.log(smoothnessInfos);
             const smoothRepresentations = smoothnessInfos ?
               representations.filter((representation) => {
                 const repId = representation.id;

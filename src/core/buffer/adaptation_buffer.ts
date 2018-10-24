@@ -243,16 +243,15 @@ function getABRForAdaptation(
       return objectAssign({ bitrate }, tick);
     }));
 
-  let smoothnessInfos;
-
-  if (videoElement instanceof HTMLVideoElement) {
-    smoothnessInfos = adaptation.type === "video" ?
-      getSmoothnessInfos(segmentBookkeeper, videoElement) :
-      undefined;
-  }
+  const smoothnessInfos$ = (
+    adaptation.type === "video" &&
+    videoElement instanceof HTMLVideoElement
+  ) ?
+    getSmoothnessInfos(segmentBookkeeper, videoElement, adaptation.representations) :
+    observableOf({});
 
   return abrManager.get$(
-    adaptation.type, abrClock$, representations, smoothnessInfos).pipe(
+    adaptation.type, abrClock$, representations, smoothnessInfos$).pipe(
     tap(({ representation }) => {
       currentRepresentation = representation;
     }));
