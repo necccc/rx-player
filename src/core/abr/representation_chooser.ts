@@ -34,6 +34,7 @@ import log from "../../log";
 import { Representation } from "../../manifest";
 import { IBufferType } from "../source_buffers";
 import BandwidthEstimator from "./bandwidth_estimator";
+import banRepresentation from "./banned_representations";
 import EWMA from "./ewma";
 import filterByBitrate from "./filterByBitrate";
 import filterByWidth from "./filterByWidth";
@@ -368,6 +369,8 @@ export default class RepresentationChooser {
       });
     }
 
+    const bannedRepresentations: Representation[] = [];
+
     const { manualBitrate$, maxAutoBitrate$, _initialBitrate }  = this;
     const _deviceEventsArray : Array<Observable<IFilters>> = [];
 
@@ -410,9 +413,13 @@ export default class RepresentationChooser {
             const smoothRepresentations = playbackQualities != null ?
               representations.filter((representation) => {
                 const repId = representation.id;
-                const playbackQuality =
-                  playbackQualities[repId] || 1;
-                return playbackQuality > 0.9;
+                const playbackQuality = playbackQualities[repId] || 1;
+                if (playbackQuality < 0.92) {
+                  banRepresentation(
+                    representation, bannedRepresentations, playbackQuality);
+                }
+                return bannedRepresentations.some((banned) =>
+                  banned.id === representation.id);
               }) :
               representations;
 
