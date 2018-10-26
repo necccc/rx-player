@@ -143,10 +143,8 @@ export default function StreamLoader({
     //    does not support adding more tracks during playback.
     createNativeSourceBuffersForPeriod(sourceBufferManager, initialPeriod);
 
-    const {
-      seek$,
-      load$,
-    } = seekAndLoadOnMediaEvents(mediaElement, initialTime, autoPlay);
+    const { seek$, load$ } =
+      seekAndLoadOnMediaEvents(mediaElement, initialTime, autoPlay);
 
     const bufferClock$ = createBufferClock(manifest, clock$, seek$, speed$, initialTime);
 
@@ -180,6 +178,34 @@ export default function StreamLoader({
           log.debug("Stream: cancel endOfStream");
           cancelEndOfStream$.next(null);
           return EMPTY;
+
+        // // XXX TODO
+        // case "representationChange": {
+        //   const { type } = evt.value;
+        //   if (!sourceBufferManager.has(type)) {
+        //     log.error("StreamLoader: representationChange event received" +
+        //       " but no SourceBuffer of that type was found.);
+        //   } else {
+        //     const qsb = sourceBufferManager.get(type);
+        //     if (qsb.isLocked()) {
+        //       qsb.emptyQueue();
+        //     }
+        //   }
+        //   break;
+        // }
+        // case "we're good": {
+        //   const { type } = evt.value;
+        //   if (!sourceBufferManager.has(type)) {
+        //     log.error("StreamLoader: we're good event received" +
+        //       " but no SourceBuffer of that type was found.);
+        //   } else {
+        //     const qsb = sourceBufferManager.get(type);
+        //     if (qsb.isLocked()) {
+        //       qsb.unlock();
+        //     }
+        //   }
+        //   break;
+        // }
         default:
           return onBufferEvent(evt);
       }
@@ -212,10 +238,12 @@ export default function StreamLoader({
       buffers$,
       speedManager$,
       stallingManager$
-    ).pipe(finalize(() => {
-      // clean-up every created SourceBuffers
-      sourceBufferManager.disposeAll();
-    }));
+    ).pipe(
+      finalize(() => {
+        // clean-up every created SourceBuffers
+        sourceBufferManager.disposeAll();
+      })
+    );
   };
 
   /**
@@ -230,6 +258,8 @@ export default function StreamLoader({
    */
   function createNativeSourceBuffersForPeriod(
     sourceBufferManager : SourceBufferManager,
+    // XXX TODO
+    // shouldLock,
     period : Period
   ) : void {
     Object.keys(period.adaptations).forEach(bufferType => {
@@ -240,6 +270,12 @@ export default function StreamLoader({
         if (representations.length) {
           const codec = representations[0].getMimeTypeString();
           sourceBufferManager.createSourceBuffer(bufferType, codec);
+          // XXX TODO
+          // const queuedSourceBuffer =
+          //   sourceBufferManager.createSourceBuffer(bufferType, codec);
+          // if (shouldLock) {
+          //   queuedSourceBuffer.lock();
+          // }
         }
       }
     });

@@ -40,6 +40,7 @@ import filterByWidth from "./filterByWidth";
 import fromBitrateCeil from "./fromBitrateCeil";
 
 const {
+  // ABR_MINIMUM_TOTAL_BYTES,
   ABR_REGULAR_FACTOR,
   ABR_STARVATION_FACTOR,
   ABR_STARVATION_GAP,
@@ -467,8 +468,8 @@ export default class RepresentationChooser {
 
             // if newBitrateCeil is not yet defined, do the normal estimation
             if (newBitrateCeil == null) {
-              bandwidthEstimate = this.estimator.getEstimate();
-
+              const estimations = this.estimator.getEstimate();
+              bandwidthEstimate = estimations.bitrate;
               let nextEstimate;
               if (bandwidthEstimate != null) {
                 nextEstimate = inStarvationMode ?
@@ -490,7 +491,6 @@ export default class RepresentationChooser {
 
             const _representations =
               getFilteredRepresentations(representations, deviceEvents);
-
             const chosenRepresentation =
               fromBitrateCeil(_representations, newBitrateCeil) || representations[0];
 
@@ -508,7 +508,6 @@ export default class RepresentationChooser {
               manual: false,
               urgent,
             };
-
           }),
 
           tap(({ bitrate }) => {

@@ -140,8 +140,18 @@ export default function AdaptationBuffer<T>(
   // Emit at each bitrate estimate done by the ABRManager
   const bitrateEstimate$ = abr$.pipe(
     filter(({ bitrate }) => bitrate != null),
+    tap(() => {
+      if (queuedSourceBuffer.isLocked()) {
+        queuedSourceBuffer.unlock();
+      }
+    }),
     map(({ bitrate }) => EVENTS.bitrateEstimationChange(adaptation.type, bitrate))
   );
+
+  // XXX TODO Do higher up
+  if (queuedSourceBuffer.bufferType === "video") {
+    queuedSourceBuffer.lock();
+  }
 
   const adaptationBuffer$ = abr$.pipe(
     distinctUntilChanged((a, b) =>
@@ -162,11 +172,16 @@ export default function AdaptationBuffer<T>(
       const { representation } = estimate;
       currentRepresentation = representation;
 
-      // Manual switch needs an immediate feedback.
-      // To do that properly, we need to reload the stream
-      if (directManualBitrateSwitching && estimate.manual && i !== 0) {
-        return observableOf(EVENTS.needsStreamReload());
+      if (estimate.manual) {
+        if (directManualBitrateSwitching && i !== 0) {
+          // Manual switch needs an immediate feedback.
+          // To do that properly, we need to reload the stream
+          return observableOf(EVENTS.needsStreamReload());
+        } else if (queuedSourceBuffer.isLocked()) {
+          queuedSourceBuffer.unlock();
+        }
       }
+
       const representationChange$ = observableOf(
         EVENTS.representationChange(adaptation.type, period, representation));
       const representationBuffer$ = createRepresentationBuffer(representation)
