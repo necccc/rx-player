@@ -34,7 +34,7 @@ import log from "../../log";
 import { Representation } from "../../manifest";
 import { IBufferType } from "../source_buffers";
 import BandwidthEstimator from "./bandwidth_estimator";
-import banRepresentation from "./banned_representations";
+import banRepresentationFromPlayback from "./banned_representations";
 import EWMA from "./ewma";
 import filterByBitrate from "./filterByBitrate";
 import filterByWidth from "./filterByWidth";
@@ -410,18 +410,26 @@ export default class RepresentationChooser {
         .pipe(
           withLatestFrom(playbackQualities$),
           map(([ [clock, maxAutoBitrate, deviceEvents], playbackQualities ]) => {
-            const smoothRepresentations = playbackQualities != null ?
+            const playableRepresentations = (() => {
+              const qualitativeRepresentations = playbackQualities != null ?
               representations.filter((representation) => {
                 const repId = representation.id;
-                const playbackQuality = playbackQualities[repId] || 1;
-                if (playbackQuality < 0.92) {
-                  banRepresentation(
+                const playbackQuality = playbackQualities[repId];
+                if (playbackQuality && playbackQuality < 0.92) {
+                  banRepresentationFromPlayback(
                     representation, bannedRepresentations, playbackQuality);
                 }
-                return bannedRepresentations.some((banned) =>
+                return !bannedRepresentations.some((banned) =>
                   banned.id === representation.id);
-              }) :
-              representations;
+              }) : representations;
+
+              if (qualitativeRepresentations.length === 0) {
+                log.warn("ABR - not considering stream qualities \
+                  - no satisfactory quality found.");
+                return representations;
+              }
+              return qualitativeRepresentations;
+            })();
 
             let nextBitrate;
             let bandwidthEstimate;
@@ -477,13 +485,13 @@ export default class RepresentationChooser {
             }
 
             const _representations =
-              getFilteredRepresentations(smoothRepresentations, deviceEvents);
+              getFilteredRepresentations(playableRepresentations, deviceEvents);
 
             return {
               bitrate: bandwidthEstimate,
               manual: false,
               representation: fromBitrateCeil(_representations, nextBitrate) ||
-                smoothRepresentations[0],
+                playableRepresentations[0],
             };
 
           }),
