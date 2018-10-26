@@ -63,7 +63,9 @@ export default function applyPrioritizerToSegmentFetcher<T>(
       content : ISegmentLoaderArguments,
       priority : number = 0
     ) : Observable<IFetchedSegment<T>> {
-      return prioritizer.create(fetcher(content), priority);
+      const obs$ = fetcher(content);
+      prioritizer.create(obs$, priority);
+      return obs$;
     },
 
     /**
